@@ -106,8 +106,8 @@ class CFTP_Decision_Trees extends CFTP_DT_Plugin {
 		add_action( 'admin_menu',            array( $this, 'action_admin_menu' ) );
 		add_action( 'admin_notices',         array( $this, 'action_admin_notices' ) );
 
-		# Filters
-		add_filter( 'the_content',           array( $this, 'filter_the_content' ) );
+		# Filters (Atlas Public Policy: Disable filter so we can use a custom version */
+		//add_filter( 'the_content',           array( $this, 'filter_the_content' ) );
 		add_filter( 'the_title',             array( $this, 'filter_the_title' ), 0, 2 );
 
 		$this->version = 3;
@@ -205,7 +205,7 @@ class CFTP_Decision_Trees extends CFTP_DT_Plugin {
 		die();
 
 	}
-
+	
 	/**
 	 * undocumented function
 	 *
@@ -242,20 +242,23 @@ class CFTP_Decision_Trees extends CFTP_DT_Plugin {
 			'capability_type'    => 'page', // @TODO: Set this to `$this->post_type` and map meta caps
 		//	'map_meta_cap'       => true,
 			'menu_position'      => 20,
+			'show_in_menu'       => false, // Atlas Public Policy addition
 			'menu_icon'          => 'dashicons-networking',
 			'hierarchical'       => true,
 			'rewrite'            => array(
 				'with_front' => false,
 				'slug'       => 'decision-tree'
 			),
-			'query_var'          => 'help', // @TODO: is this the best qv name?
+			// Atlas Public Policy change
+			//'query_var'          => 'help', // @TODO: is this the best qv name?
 			'delete_with_user'   => false,
-			'supports'           => array( 'title', 'editor', 'page-attributes' ),
+			// Atlas Public Policy change
+			'supports'           => array( 'title', 'editor', 'page-attributes', 'custom-fields' ),
 		);
 		$args = apply_filters( 'cftp_dt_cpt_args', $args );
 		$cpt = register_post_type( $this->post_type, $args );
 	}
-
+	
 	function action_admin_menu() {
 
 		$pto = get_post_type_object( $this->post_type );
@@ -349,6 +352,12 @@ class CFTP_Decision_Trees extends CFTP_DT_Plugin {
 			return;
 		if ( $this->post_type != $post->post_type )
 			return;
+		
+		// Atlas Public Policy addition
+		if(isset($_POST['node_description'])){
+			$text = nl2br($_POST['node_description']);
+			update_post_meta($post_id,'node_description',$text);
+		}
 
 		if ( isset( $_POST["cftp_dt_post_{$post_id}_parent"] ) ) {
 
@@ -531,6 +540,17 @@ class CFTP_Decision_Trees extends CFTP_DT_Plugin {
 		if ( $this->post_type != $post_type )
 			return;
 		add_meta_box( 'cftp_dt_answers', __( 'Answers', 'cftp_dt' ), array( $this, 'callback_answers_meta_box' ), $this->post_type, 'advanced', 'default' );
+
+		// Atlas Public Policy addition		
+		add_meta_box(
+			'cftp_dt_node_description',
+			__( 'Node Description', 'cftp_dt' ),
+			array($this,'description_html'),
+			$this->post_type,
+			'side',
+			'default'
+		);
+
 	}
 
 	// CALLBACKS
@@ -550,6 +570,18 @@ class CFTP_Decision_Trees extends CFTP_DT_Plugin {
 		$vars = array();
 		$vars[ 'answers' ] = cftp_dt_get_post_answers( $post->ID );
 		$this->render_admin( 'meta-box-answers.php', $vars );
+	}
+	
+	// Atlas Public Policy addition
+	function description_html($post, $box){
+		$text = get_post_meta($post->ID,'node_description',true);
+		?>
+		<textarea 
+				  name="node_description"
+				  id="node_description"
+				  class="widefat"
+				  rows="7"><?= $text; ?></textarea>
+		<?php
 	}
 
 	// METHODS
@@ -587,7 +619,8 @@ class CFTP_Decision_Trees extends CFTP_DT_Plugin {
 
 		// Flush the rewrite rules
 		if ( $version < 2 ) {
-			flush_rewrite_rules();
+			// Atlas Public Policy change
+			//flush_rewrite_rules();
 			error_log( "CFTP DT: Flush rewrite rules" );
 		}
 
